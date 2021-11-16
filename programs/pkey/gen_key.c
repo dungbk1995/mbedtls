@@ -39,6 +39,7 @@
 #include "mbedtls/error.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
+#include "mbedtls/base64.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -145,6 +146,54 @@ struct options
     int use_dev_random;         /* use /dev/random as entropy source    */
 } opt;
 
+static int write_public_key( mbedtls_pk_context *key, const char *output_file )
+{
+    int ret;
+    FILE *f;
+    unsigned char output_buf[16000];
+    unsigned char *c = output_buf;
+    size_t len = 0;
+
+    memset(output_buf, 0, 16000);
+
+#if defined(MBEDTLS_PEM_WRITE_C)
+    if( opt.format == FORMAT_PEM )
+    {
+        if( ( ret = mbedtls_pk_write_pubkey_pem( key, output_buf, 16000 ) ) != 0 )
+            return( ret );
+
+        len = strlen( (char *) output_buf );
+    }
+    else
+#endif
+    {
+        if( ( ret = mbedtls_pk_write_pubkey_der( key, output_buf, 16000 ) ) < 0 )
+            return( ret );
+
+        len = ret;
+        c = output_buf + sizeof(output_buf) - len;
+    }
+
+    unsigned char base64[16000];
+    size_t olen;
+    if ( ( ret = mbedtls_base64_encode(base64, 16000, &olen, output_buf, len) ) != 0 ) {
+        mbedtls_printf( "\n  . public base 64 failed \n\n" );
+    }
+    mbedtls_printf( "The public is: '%s'\n\n", base64 );
+
+    if( ( f = fopen( output_file, "w" ) ) == NULL )
+        return( -1 );
+
+    if( fwrite( c, 1, len, f ) != len )
+    {
+        fclose( f );
+        return( -1 );
+    }
+
+    fclose( f );
+
+    return( 0 );
+}
 static int write_private_key( mbedtls_pk_context *key, const char *output_file )
 {
     int ret;
@@ -169,6 +218,13 @@ static int write_private_key( mbedtls_pk_context *key, const char *output_file )
         len = ret;
         c = output_buf + sizeof(output_buf) - len;
     }
+
+    unsigned char base64[16000];
+    size_t olen;
+    if ( ( ret = mbedtls_base64_encode(base64, 16000, &olen, output_buf, len) ) != 0 ) {
+        mbedtls_printf( "\n  . private base 64 failed \n\n" );
+    }
+    mbedtls_printf( "The private is: '%s'\n\n", base64 );
 
     if( ( f = fopen( output_file, "wb" ) ) == NULL )
         return( -1 );
@@ -403,11 +459,17 @@ int main( int argc, char *argv[] )
     /*
      * 1.3 Export key
      */
-    mbedtls_printf( "  . Writing key to file..." );
+    mbedtls_printf( "  . Writing key to file...\n\n" );
 
     if( ( ret = write_private_key( &key, opt.filename ) ) != 0 )
     {
-        mbedtls_printf( " failed\n" );
+        mbedtls_printf( "private_key write failed\n" );
+        goto exit;
+    }
+
+    if( ( ret = write_public_key( &key, "keyfile.pub") ) != 0 )
+    {
+        mbedtls_printf( "public_key write failed\n" );
         goto exit;
     }
 
