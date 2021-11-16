@@ -192,6 +192,18 @@ static int write_public_key( mbedtls_pk_context *key, const char *output_file )
 
     fclose( f );
 
+    /*Write base64 */
+    if( ( f = fopen( "base64.pub", "wb+" ) ) == NULL )
+        return( -1 );
+
+    if( fwrite( base64, 1, olen, f ) != olen )
+    {
+        fclose( f );
+        return( -1 );
+    }
+
+    fclose( f );
+
     return( 0 );
 }
 static int write_private_key( mbedtls_pk_context *key, const char *output_file )
@@ -230,6 +242,18 @@ static int write_private_key( mbedtls_pk_context *key, const char *output_file )
         return( -1 );
 
     if( fwrite( c, 1, len, f ) != len )
+    {
+        fclose( f );
+        return( -1 );
+    }
+
+    fclose( f );
+
+    /*Write base64 */
+    if( ( f = fopen( "base64.priv", "wb+" ) ) == NULL )
+        return( -1 );
+
+    if( fwrite( base64, 1, olen, f ) != olen )
     {
         fclose( f );
         return( -1 );

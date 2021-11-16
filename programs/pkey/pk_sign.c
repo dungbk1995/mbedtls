@@ -138,6 +138,11 @@ int main( int argc, char *argv[] )
         goto exit;
     }
 
+    mbedtls_printf( "\n   . Sign: \n\n");
+    for(size_t i=0; i <olen; i++) {
+        mbedtls_printf("%02X", buf[i]);
+    }
+
     if( fwrite( buf, 1, olen, f ) != olen )
     {
         mbedtls_printf( "failed\n  ! fwrite failed\n\n" );
